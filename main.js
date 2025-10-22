@@ -1,10 +1,9 @@
-// ========== SMART HOME CONTROL SCRIPT ==========
-// Versi: Final (Professional Refactor)
-// Fungsi: Mengelola status perangkat, konsumsi daya, dan UI smart home
+// ========== SMART HOME CONTROL SCRIPT ==========// ========== SMART HOME DASHBOARD (🔥 COOL & CLEAN VERSION) ==========
+// Control Panel for Smart Devices – Power Tracking & Toggle System
 
-// ========================
-// === Data Perangkat ===
-// ========================
+// ==========================
+// === Device Definitions ===
+// ==========================
 const devices = {
   lamp_tamu:      { name: "Lampu Ruang Tamu", power: 40 },
   lamp_garasi:    { name: "Lampu Garasi", power: 30 },
@@ -18,119 +17,108 @@ const devices = {
   fridge_mini:    { name: "Kulkas Mini", power: 100 },
 };
 
-// ==============================
-// === Event Listener Toggle ===
-// ==============================
-document.querySelectorAll(".toggle").forEach(button => {
-  button.addEventListener("click", () => handleToggle(button));
-});
-
-// ============================
-// === Inisialisasi Halaman ===
-// ============================
+// ========================
+// === Initial Setups 🚀 ===
+// ========================
 window.addEventListener("load", () => {
-  document.querySelectorAll(".toggle").forEach(button => {
-    const id = button.dataset.device;
-    const savedState = JSON.parse(localStorage.getItem(id)) || {};
-    const isOn = savedState.status === "ON";
+  document.querySelectorAll(".toggle").forEach(btn => {
+    const id = btn.dataset.device;
+    const state = JSON.parse(localStorage.getItem(id)) || {};
+    const isActive = state.status === "ON";
 
-    updateButtonUI(button, isOn);
-    if (isOn) startUsageTimer(id);
+    setToggleUI(btn, isActive);
+    if (isActive) runPowerTimer(id);
   });
 
-  updateDashboard();
+  refreshDashboard();
 });
 
-// ===============================
-// === Fungsi Toggle Perangkat ===
-// ===============================
-function handleToggle(button) {
-  const id = button.dataset.device;
-  const current = JSON.parse(localStorage.getItem(id)) || { status: "OFF", usage: 0 };
-  const newStatus = current.status === "ON" ? "OFF" : "ON";
+// ==============================
+// === Toggle Handler 💡🔌 ===
+// ==============================
+document.querySelectorAll(".toggle").forEach(btn => {
+  btn.addEventListener("click", () => toggleDevice(btn));
+});
 
-  // Simpan status baru
+function toggleDevice(btn) {
+  const id = btn.dataset.device;
+  const current = JSON.parse(localStorage.getItem(id)) || { status: "OFF", usage: 0 };
+  const newState = current.status === "ON" ? "OFF" : "ON";
+
   localStorage.setItem(id, JSON.stringify({
-    status: newStatus,
+    status: newState,
     lastChange: Date.now(),
     usage: current.usage || 0,
   }));
 
-  // Update UI & timer
-  updateButtonUI(button, newStatus === "ON");
-
-  newStatus === "ON" ? startUsageTimer(id) : stopUsageTimer(id);
-  updateDashboard();
+  setToggleUI(btn, newState === "ON");
+  newState === "ON" ? runPowerTimer(id) : stopPowerTimer(id);
+  refreshDashboard();
 }
 
-// =============================
-// === Update Tampilan UI ===
-// =============================
-function updateButtonUI(button, isOn) {
-  button.textContent = isOn ? "ON" : "OFF";
-  button.classList.toggle("on", isOn);
-  button.style.backgroundColor = isOn ? "#388e3c" : "#d32f2f";
+// ==========================
+// === UI & Power Summary ===
+// ==========================
+function setToggleUI(btn, isOn) {
+  btn.textContent = isOn ? "ON" : "OFF";
+  btn.classList.toggle("on", isOn);
+  btn.style.backgroundColor = isOn ? "#43a047" : "#e53935";
 }
 
-// =======================================
-// === Update Ringkasan & Konsumsi Daya ===
-// =======================================
-function updateDashboard() {
-  const groupMap = {
-    lampSummary:     ["lamp_tamu", "lamp_garasi", "lamp_keluarga"],
-    acSummary:       ["ac_utama", "ac_kamar"],
-    tvSummary:       ["tv_keluarga"],
-    mwSummary:       ["mw_dapur", "mw_mini"],
-    fridgeSummary:   ["fridge_utama", "fridge_mini"],
+function refreshDashboard() {
+  const categories = {
+    lampSummary:   ["lamp_tamu", "lamp_garasi", "lamp_keluarga"],
+    acSummary:     ["ac_utama", "ac_kamar"],
+    tvSummary:     ["tv_keluarga"],
+    mwSummary:     ["mw_dapur", "mw_mini"],
+    fridgeSummary: ["fridge_utama", "fridge_mini"],
   };
 
   let totalPower = 0;
 
-  for (const groupId in groupMap) {
-    const summaryEl = document.getElementById(groupId);
+  for (const [summaryId, deviceList] of Object.entries(categories)) {
+    const summaryEl = document.getElementById(summaryId);
     if (!summaryEl) continue;
 
-    const devicesInGroup = groupMap[groupId];
-    const anyActive = devicesInGroup.some(id => {
-      const data = JSON.parse(localStorage.getItem(id));
-      if (data?.status === "ON") {
+    const anyOn = deviceList.some(id => {
+      const info = JSON.parse(localStorage.getItem(id));
+      if (info?.status === "ON") {
         totalPower += devices[id]?.power || 0;
         return true;
       }
       return false;
     });
 
-    summaryEl.textContent = anyActive ? "ON" : "OFF";
-    summaryEl.style.color = anyActive ? "green" : "red";
+    summaryEl.textContent = anyOn ? "ON" : "OFF";
+    summaryEl.style.color = anyOn ? "#4caf50" : "#f44336";
   }
 
-  // Tampilkan total daya
-  const summaryEl = document.getElementById("summary");
-  if (summaryEl) {
+  // Show total power
+  const summaryContainer = document.getElementById("summary");
+  if (summaryContainer) {
     let powerEl = document.getElementById("powerDisplay");
     if (!powerEl) {
       powerEl = document.createElement("p");
       powerEl.id = "powerDisplay";
-      summaryEl.appendChild(powerEl);
+      summaryContainer.appendChild(powerEl);
     }
 
-    powerEl.innerHTML = `⚡ Total Daya: <b>${totalPower} W</b>`;
+    powerEl.innerHTML = `⚡ <strong>${totalPower} W</strong> sedang digunakan`;
   }
 }
 
-// ==========================
-// === Timer Pemakaian ON ===
-// ==========================
-const activeTimers = {};
+// ===========================
+// === Power Usage Tracker ===
+// ===========================
+const powerTimers = {};
 
-function startUsageTimer(id) {
-  if (activeTimers[id]) return;
+function runPowerTimer(id) {
+  if (powerTimers[id]) return;
 
-  activeTimers[id] = setInterval(() => {
+  powerTimers[id] = setInterval(() => {
     const data = JSON.parse(localStorage.getItem(id)) || {};
     if (data.status !== "ON") {
-      clearInterval(activeTimers[id]);
-      delete activeTimers[id];
+      stopPowerTimer(id);
       return;
     }
 
@@ -139,18 +127,16 @@ function startUsageTimer(id) {
   }, 1000);
 }
 
-function stopUsageTimer(id) {
-  if (activeTimers[id]) {
-    clearInterval(activeTimers[id]);
-    delete activeTimers[id];
-  }
+function stopPowerTimer(id) {
+  clearInterval(powerTimers[id]);
+  delete powerTimers[id];
 }
 
-// ===========================================
-// === Sinkronisasi antar Tab / Jendela ===
-// ===========================================
+// ================================
+// === Cross-tab Sync Magic 🪄 ===
+// ================================
 window.addEventListener("storage", e => {
-  if (devices[e.key]) {
-    updateDashboard();
-  }
+  if (devices[e.key]) refreshDashboard();
 });
+
+
